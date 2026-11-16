@@ -2,6 +2,8 @@
 #include <SDL_net.h>
 #include <map>
 #include <string>
+#include "MessageStruct.h"
+
 class Server
 {
 public:
@@ -16,7 +18,7 @@ private:
 	void DisconnectClient();
 
 	void ReceiveMessage();
-	void SendMessage(std::string message, TCPsocket clientSocket);
+	void SendMessage(MessageStruct message, TCPsocket clientSocket);
 
 	void DispatchMessageToAllClients(std::string name, std::string message);
 private:

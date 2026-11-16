@@ -1,4 +1,5 @@
 #include "Server.h"
+
 #include <iostream>
 
 
@@ -58,6 +59,7 @@ void Server::WaitForData()
 			{
 				std::string messageReceived = messageBuffer;
 				std::cout << "Incoming message: " << messageReceived << std::endl;
+				SendMessage(MessageStruct::Type::LOG,"Received", it.first);
 				DispatchMessageToAllClients(it.second, messageReceived);
 			}
 		}
@@ -68,7 +70,7 @@ void Server::DispatchMessageToAllClients(std::string name, std::string message)
 {
 	for (auto it : m_clients)
 	{
-		SendMessage(name + ": " + message, it.first);
+		SendMessage(MessageStruct::Type::MESSAGE, name + ": " + message, it.first);
 	}
 }
 
@@ -81,13 +83,13 @@ void Server::ConnectNewClient(TCPsocket clientSocket)
 	{
 		std::cout << "Client Name: " << buffer << std::endl;
 		m_clients.insert({ clientSocket,buffer });
-		//SendMessage("Connection Worked", clientSocket);
+		SendMessage(MessageStruct::Type::LOG, "Connection Worked", clientSocket);
 		SDLNet_AddSocket(m_connectedClients, reinterpret_cast<SDLNet_GenericSocket>(clientSocket));
 	}
 	else
 	{
 		std::cout << "Client Name not received client Not Connected" << std::endl;
-		SendMessage("Failed Connection", clientSocket);
+		SendMessage(MessageStruct::Type::LOG,"Failed Connection", clientSocket);
 	}
 }
 
@@ -99,7 +101,7 @@ void Server::ReceiveMessage()
 {
 }
 
-void Server::SendMessage(std::string message, TCPsocket clientSocket)
+void Server::SendMessage(MessageStruct message, TCPsocket clientSocket)
 {
 	int bytesSent = SDLNet_TCP_Send(clientSocket, message.c_str(), message.length() + 1);
 	if (bytesSent < message.length() + 1) {

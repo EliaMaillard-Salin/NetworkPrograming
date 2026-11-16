@@ -173,13 +173,16 @@ void Client::ReceiveFromServer()
     int bytesRead = SDLNet_TCP_Recv(m_socket, messageBuffer, sizeof(messageBuffer));
     if (bytesRead > 0)
     {
-        std::string strMessage = messageBuffer;
-        std::string pseudo = strMessage.substr(0, strMessage.find(":"));
-        std::string content = strMessage.erase(0, strMessage.find(":") + 1);
-        MessageStruct received = { pseudo,content };
-        std::string messageReceived = messageBuffer;
-        std::cout << "Incoming message: " << messageReceived << std::endl;
-        m_messageReceived.push_front(received);
+        MessageStruct::Type type;
+        std::memcpy(&type, messageBuffer, sizeof(type));
+        //std::string strMessage = messageBuffer;
+        //std::string pseudo = strMessage.substr(0, strMessage.find(":"));
+        //std::string content = strMessage.erase(0, strMessage.find(":") + 1);
+        //MessageStruct received = { MessageStruct::Type::MESSAGE, pseudo,content };
+        //std::string messageReceived = messageBuffer;
+        //std::cout << "Incoming message: " << messageReceived << std::endl;
+        //m_messageReceived.push_front(received);
+        SendMessage("Received");
     }
 }
 
