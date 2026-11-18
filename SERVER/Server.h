@@ -17,7 +17,7 @@ private:
 	void ConnectNewClient(TCPsocket newSocket);
 	void DisconnectClient();
 
-	void ReceiveMessage();
+	void ReceiveMessage(TCPsocket socket, std::string fromName );
 	void SendMessage(MessageStruct message, TCPsocket clientSocket);
 
 	void DispatchMessageToAllClients(std::string name, std::string message);

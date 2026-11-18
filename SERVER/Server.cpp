@@ -53,15 +53,7 @@ void Server::WaitForData()
 	{
 		if (it.first)
 		{
-			char messageBuffer[1024];
-			int bytesRead = SDLNet_TCP_Recv(it.first, messageBuffer, sizeof(messageBuffer));
-			if (bytesRead > 0)
-			{
-				std::string messageReceived = messageBuffer;
-				std::cout << "Incoming message: " << messageReceived << std::endl;
-				SendMessage(MessageStruct::Type::LOG,"Received", it.first);
-				DispatchMessageToAllClients(it.second, messageReceived);
-			}
+			ReceiveMessage(it.first, it.second);
 		}
 	}
 
@@ -70,7 +62,11 @@ void Server::DispatchMessageToAllClients(std::string name, std::string message)
 {
 	for (auto it : m_clients)
 	{
-		SendMessage(MessageStruct::Type::MESSAGE, name + ": " + message, it.first);
+		MessageStruct toSend;
+		toSend.type = MessageStruct::Type::MESSAGE;
+		toSend.from = name +":";
+		toSend.content = message;
+		SendMessage(toSend, it.first);
 	}
 }
 
@@ -83,13 +79,21 @@ void Server::ConnectNewClient(TCPsocket clientSocket)
 	{
 		std::cout << "Client Name: " << buffer << std::endl;
 		m_clients.insert({ clientSocket,buffer });
-		SendMessage(MessageStruct::Type::LOG, "Connection Worked", clientSocket);
+		MessageStruct toSend;
+		toSend.type = MessageStruct::Type::LOG;
+		toSend.from = "Server :";
+		toSend.content = "Connection Worked";
+		SendMessage(toSend, clientSocket);
 		SDLNet_AddSocket(m_connectedClients, reinterpret_cast<SDLNet_GenericSocket>(clientSocket));
 	}
 	else
 	{
 		std::cout << "Client Name not received client Not Connected" << std::endl;
-		SendMessage(MessageStruct::Type::LOG,"Failed Connection", clientSocket);
+		MessageStruct toSend;
+		toSend.type = MessageStruct::Type::LOG;
+		toSend.from = "Server :";
+		toSend.content = "Connection Failed";
+		SendMessage(toSend, clientSocket);
 	}
 }
 
@@ -97,14 +101,29 @@ void Server::DisconnectClient()
 {
 }
 
-void Server::ReceiveMessage()
+void Server::ReceiveMessage(TCPsocket socket, std::string fromName)
 {
+	char messageBuffer[1024];
+	int bytesRead = SDLNet_TCP_Recv(socket, messageBuffer, sizeof(messageBuffer));
+	if (bytesRead > 0)
+	{
+		std::string messageReceived = messageBuffer;
+		std::cout << "Incoming message: " << messageReceived << std::endl;
+		MessageStruct toSend;
+		toSend.type = MessageStruct::Type::LOG;
+		toSend.from = "Server :";
+		toSend.content = "Message Received";
+		SendMessage(toSend, socket);
+		DispatchMessageToAllClients(fromName, messageReceived);
+	}
 }
 
 void Server::SendMessage(MessageStruct message, TCPsocket clientSocket)
 {
-	int bytesSent = SDLNet_TCP_Send(clientSocket, message.c_str(), message.length() + 1);
-	if (bytesSent < message.length() + 1) {
+	char* toSend = reinterpret_cast<char*>(message.type);
+	std::string completeMessage = toSend + message.from + message.content;
+	int bytesSent = SDLNet_TCP_Send(clientSocket, completeMessage.c_str(), completeMessage.length() + 1);
+	if (bytesSent < completeMessage.length() + 1) {
 		std::cerr << "SDLNet TCP Send error: " << SDLNet_GetError() << std::endl;
 		return;
 	}
