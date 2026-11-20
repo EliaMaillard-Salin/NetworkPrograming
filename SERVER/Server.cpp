@@ -1,5 +1,6 @@
 #include "Server.h"
 
+
 #include <iostream>
 
 
@@ -23,7 +24,7 @@ bool Server::Init(int port)
 		SDLNet_Quit();
 		return false;
 	}
-	m_connectedClients = SDLNet_AllocSocketSet(8);	//Put the maximum number of sockets
+	m_connectedClients = SDLNet_AllocSocketSet(4);	//Put the maximum number of sockets
 	return true;
 }
 
@@ -32,7 +33,16 @@ void Server::LaunchServer()
 	std::cout << "Server Started !\n";
 	while(m_runServer)
 	{
+		m_currentSendDataCD += 1.0f;
 		WaitForData();
+	}
+}
+
+void Server::ResetRun()
+{
+	for (DuckData ducks : m_ducksRunning)
+	{
+		ducks.DuckDist = 0;
 	}
 }
 
@@ -46,27 +56,48 @@ void Server::WaitForData()
 	}
 
 	// Check MessageReceived
-	if (SDLNet_CheckSockets(m_connectedClients, 0) == 0)
+	if (SDLNet_CheckSockets(m_connectedClients, 0) <= 0)
 		return;
 
 	for (auto it : m_clients)
 	{
 		if (it.first)
 		{
-			ReceiveMessage(it.first, it.second);
+			if (SDLNet_SocketReady(it.first))
+				ReceiveMessage(it.first, it.second);
 		}
 	}
 
 }
-void Server::DispatchMessageToAllClients(std::string name, std::string message)
+void Server::UpdateDataFrame()
+{
+	MessageStruct updateData;
+	updateData.type = MessageStruct::FRAME_UPDATE;
+	updateData.title = "Server";
+	for (DuckData duckCOnnected : m_ducksRunning)
+	{
+		if (duckCOnnected.duckID == -1)
+			continue;
+		updateData.content += duckCOnnected.ConvertToString();
+	}
+
+	for (auto it : m_clients)
+	{
+		SendMessage(updateData,it.first);
+	}
+}
+
+void Server::UpdateReceivedData(DuckData duck)
+{
+	m_ducksRunning[duck.duckID] = duck;
+	UpdateDataFrame();
+}
+
+void Server::DispatchMessageToAllClients(MessageStruct message)
 {
 	for (auto it : m_clients)
 	{
-		MessageStruct toSend;
-		toSend.type = MessageStruct::Type::MESSAGE;
-		toSend.from = name;
-		toSend.content = message;
-		SendMessage(toSend, it.first);
+		SendMessage(message, it.first);
 	}
 }
 
@@ -78,21 +109,34 @@ void Server::ConnectNewClient(TCPsocket clientSocket)
 	if (bytesRead > 0)
 	{
 		MessageStruct received = MessageStruct::GetFromBuffer(buffer);
-		std::cout << "Client Name: " << received.from << std::endl;
-		m_clients.insert({ clientSocket,received.from });
-		MessageStruct toSend;
-		toSend.type = MessageStruct::Type::LOG;
-		toSend.from = "Server :";
-		toSend.content = "Connection Worked";
-		SendMessage(toSend, clientSocket);
+		std::cout << "Client Name: " << received.title << std::endl;
+		m_clients.insert({ clientSocket,received.title });
+		MessageStruct sendID;
+		sendID.type = MessageStruct::Type::LOG;
+		sendID.title = "ID";
+		sendID.content = std::to_string(m_lastIDAvailable);
+		SendMessage(sendID, clientSocket);
+
+		DuckData newDuck = DuckData::GetFromString(received.content);
+		newDuck.duckID = m_lastIDAvailable;
+
+		MessageStruct sendNewDuck;
+		sendNewDuck.type = MessageStruct::FRAME_UPDATE;
+		sendNewDuck.title = "NewDucks";
+		sendNewDuck.content = newDuck.ConvertToString();
+		m_ducksRunning[m_lastIDAvailable] = newDuck;
+		m_lastIDAvailable++;
 		SDLNet_AddSocket(m_connectedClients, reinterpret_cast<SDLNet_GenericSocket>(clientSocket));
+
+		UpdateDataFrame();
+
 	}
 	else
 	{
 		std::cout << "Client Name not received client Not Connected" << std::endl;
 		MessageStruct toSend;
 		toSend.type = MessageStruct::Type::LOG;
-		toSend.from = "Server :";
+		toSend.title = "FAIL";
 		toSend.content = "Connection Failed";
 		SendMessage(toSend, clientSocket);
 	}
@@ -102,6 +146,21 @@ void Server::DisconnectClient()
 {
 }
 
+void Server::HandleGameInfos(MessageStruct message)
+{
+	if (message.title.find("Start") == 0)
+	{
+		m_runGoing = true;
+		MessageStruct startRun;
+		startRun.type = MessageStruct::GAME_INFO;
+		startRun.title = "Start";
+		DispatchMessageToAllClients(startRun);
+	}
+	if (message.title.find("Win") == 0)
+	{
+	}
+}
+
 void Server::ReceiveMessage(TCPsocket socket, std::string fromName)
 {
 	char messageBuffer[1024];
@@ -109,13 +168,10 @@ void Server::ReceiveMessage(TCPsocket socket, std::string fromName)
 	if (bytesRead > 0)
 	{
 		MessageStruct receiveMessage = MessageStruct::GetFromBuffer(messageBuffer);
-
-		MessageStruct toSend;
-		toSend.type = MessageStruct::Type::LOG;
-		toSend.from = "Server :";
-		toSend.content = "Message Received";
-		//SendMessage(toSend, socket);
-		DispatchMessageToAllClients(receiveMessage.from, receiveMessage.content);
+		if (receiveMessage.type == MessageStruct::FRAME_UPDATE)
+			UpdateReceivedData(DuckData::GetFromString(receiveMessage.content));
+		if (receiveMessage.type == MessageStruct::GAME_INFO)
+			HandleGameInfos(receiveMessage);
 	}
 }
 

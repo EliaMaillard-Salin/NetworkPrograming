@@ -7,7 +7,8 @@ struct MessageStruct
 	{
 		LOG,
 		MESSAGE,
-		INPUT,
+		GAME_INFO,
+		FRAME_UPDATE,
 	};
 	Type type;
 	std::string from;

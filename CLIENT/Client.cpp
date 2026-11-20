@@ -154,7 +154,6 @@ void Client::SendMessage(std::string message)
 
 void Client::LaunchChat()
 {
-    InitRLWindow();
     while(m_isConnected)
     {
         ReceiveFromServer();

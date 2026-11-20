@@ -7,6 +7,7 @@ MessageStruct MessageStruct::GetFromBuffer(char* buffer)
 	out.type = static_cast<MessageStruct::Type>(in[0] - '0');
 	in = in.erase(0,1);
 	out.from = in.substr(0, 10);
+
 	out.content = in.erase(0, 10);
 	return out;
 }
