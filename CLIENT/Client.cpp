@@ -142,8 +142,10 @@ void Client::OpenConnectionWindow()
 
 void Client::SendMessage(std::string message)
 {
-    int bytesSent = SDLNet_TCP_Send(m_socket, message.c_str(), message.length() + 1);
-    if (bytesSent < message.length() + 1) {
+    MessageStruct toSend = { MessageStruct::MESSAGE, m_name, message };
+    std::string outBuffer = toSend.CreateBufferFromMessage();
+    int bytesSent = SDLNet_TCP_Send(m_socket, outBuffer.c_str(), outBuffer.length() + 1);
+    if (bytesSent < outBuffer.length() + 1) {
         std::cerr << "SDLNet TCP Send error: " << SDLNet_GetError() << std::endl;
         return;
     }
@@ -168,21 +170,17 @@ void Client::ReceiveFromServer()
 {
     if (SDLNet_CheckSockets(m_serverSocket, 0) == 0)
         return;
-
     char messageBuffer[1024];
     int bytesRead = SDLNet_TCP_Recv(m_socket, messageBuffer, sizeof(messageBuffer));
     if (bytesRead > 0)
     {
-        MessageStruct::Type type;
-        std::memcpy(&type, messageBuffer, sizeof(type));
-        //std::string strMessage = messageBuffer;
-        //std::string pseudo = strMessage.substr(0, strMessage.find(":"));
-        //std::string content = strMessage.erase(0, strMessage.find(":") + 1);
-        //MessageStruct received = { MessageStruct::Type::MESSAGE, pseudo,content };
-        //std::string messageReceived = messageBuffer;
-        //std::cout << "Incoming message: " << messageReceived << std::endl;
-        //m_messageReceived.push_front(received);
-        SendMessage("Received");
+        MessageStruct received = MessageStruct::GetFromBuffer(messageBuffer);
+        if (received.type == MessageStruct::MESSAGE)
+            m_messageReceived.push_front(received);
+        else 
+        {
+            std::cout << "Incoming LOG: " << received.content << std::endl;
+        }
     }
 }
 

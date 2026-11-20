@@ -1,21 +1,23 @@
 #include "MessageStruct.h"
 
-std::string MessageStruct::GetMessageBuffer(MessageStruct from)
-{
-    if (from.from.size() > 10)
-        return "";
 
-    char* type;
-    memcpy(&type, &from.type, sizeof(MessageStruct::Type));
-    char* name;
-    memcpy(&name, &from.from, 10);
-    
-    
-    std::string res;
-    return std::string();
+MessageStruct MessageStruct::GetFromBuffer(char* buffer)
+{
+	MessageStruct out;
+	std::string in = buffer;
+	out.type = static_cast<MessageStruct::Type>(in[0] - '0');
+	in = in.erase(0,1);
+	out.from = in.substr(0, 10);
+	out.content = in.erase(0, 10);
+	return out;
 }
 
-MessageStruct MessageStruct::GetMessageFrom(std::string from)
+std::string MessageStruct::CreateBufferFromMessage()
 {
-    return MessageStruct();
+	std::string out;
+	out += std::to_string(type);
+	from.resize(10, ' ');
+	out += from;
+	out += content;
+	return out;
 }

@@ -5,8 +5,9 @@ struct MessageStruct
 {
 	enum Type
 	{
-		MESSAGE,
 		LOG,
+		MESSAGE,
+		INPUT,
 	};
 	Type type;
 	std::string from;
@@ -14,7 +15,7 @@ struct MessageStruct
 
 	static int const FROM_SIZE_MAX = 10;
 
-	std::string GetMessageBuffer(MessageStruct from);
-	static MessageStruct GetMessageFrom( std::string from);
+	static MessageStruct GetFromBuffer(char* buffer);
+	std::string CreateBufferFromMessage();
 };
 

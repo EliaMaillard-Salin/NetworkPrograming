@@ -64,7 +64,7 @@ void Server::DispatchMessageToAllClients(std::string name, std::string message)
 	{
 		MessageStruct toSend;
 		toSend.type = MessageStruct::Type::MESSAGE;
-		toSend.from = name +":";
+		toSend.from = name;
 		toSend.content = message;
 		SendMessage(toSend, it.first);
 	}
@@ -77,8 +77,9 @@ void Server::ConnectNewClient(TCPsocket clientSocket)
 	int bytesRead = SDLNet_TCP_Recv(clientSocket, buffer, sizeof(buffer));
 	if (bytesRead > 0)
 	{
-		std::cout << "Client Name: " << buffer << std::endl;
-		m_clients.insert({ clientSocket,buffer });
+		MessageStruct received = MessageStruct::GetFromBuffer(buffer);
+		std::cout << "Client Name: " << received.from << std::endl;
+		m_clients.insert({ clientSocket,received.from });
 		MessageStruct toSend;
 		toSend.type = MessageStruct::Type::LOG;
 		toSend.from = "Server :";
@@ -107,23 +108,23 @@ void Server::ReceiveMessage(TCPsocket socket, std::string fromName)
 	int bytesRead = SDLNet_TCP_Recv(socket, messageBuffer, sizeof(messageBuffer));
 	if (bytesRead > 0)
 	{
-		std::string messageReceived = messageBuffer;
-		std::cout << "Incoming message: " << messageReceived << std::endl;
+		MessageStruct receiveMessage = MessageStruct::GetFromBuffer(messageBuffer);
+
 		MessageStruct toSend;
 		toSend.type = MessageStruct::Type::LOG;
 		toSend.from = "Server :";
 		toSend.content = "Message Received";
-		SendMessage(toSend, socket);
-		DispatchMessageToAllClients(fromName, messageReceived);
+		//SendMessage(toSend, socket);
+		DispatchMessageToAllClients(receiveMessage.from, receiveMessage.content);
 	}
 }
 
 void Server::SendMessage(MessageStruct message, TCPsocket clientSocket)
 {
-	char* toSend = reinterpret_cast<char*>(message.type);
-	std::string completeMessage = toSend + message.from + message.content;
-	int bytesSent = SDLNet_TCP_Send(clientSocket, completeMessage.c_str(), completeMessage.length() + 1);
-	if (bytesSent < completeMessage.length() + 1) {
+	std::string toSend = message.CreateBufferFromMessage();
+	int bytesSent = SDLNet_TCP_Send(clientSocket, toSend.c_str(), toSend.length() + 1);
+
+	if (bytesSent < toSend.length() + 1) {
 		std::cerr << "SDLNet TCP Send error: " << SDLNet_GetError() << std::endl;
 		return;
 	}
